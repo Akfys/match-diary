@@ -203,60 +203,226 @@ select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px
 
 <script>
 // ─────────────────────────────────────────────
-//  ★  PASTE YOUR GITHUB TOKEN ON THE NEXT LINE
-// ─────────────────────────────────────────────
-const GITHUB_TOKEN = "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";
-const GITHUB_USERNAME = "Akfys";
-const REPO_NAME = "match-diary";
+//  ★  LOCAL STORAGE MODE (Safe for Public GitHub Repos)
 // ─────────────────────────────────────────────
 
-const API = "https://api.github.com";
-const HEADERS = () => ({
-  "Authorization": `token ${GITHUB_TOKEN}`,
-  "Content-Type": "application/json",
-  "Accept": "application/vnd.github.v3+json"
-});
+const STATUS_OPTIONS = ['Not watched','Full','Highlights','Just score'];
+let SPORTS = JSON.parse(JSON.stringify(DEFAULT_SPORTS));
+let selectedDate = new Date().toISOString().split('T')[0];
 
-async function ghGet(path) {
-  const r = await fetch(`${API}${path}`, { headers: HEADERS() });
-  if (!r.ok) return null;
-  return r.json();
+document.getElementById('diary-date').value = selectedDate;
+document.getElementById('diary-date').addEventListener('change', e => { selectedDate = e.target.value; render(); });
+
+function setStatus(msg, state='ok') {
+  document.getElementById('status-msg').textContent = msg;
+  const dot = document.getElementById('sdot');
+  dot.className = 'status-dot' + (state==='loading' ? ' loading' : state==='error' ? ' error' : '');
 }
 
-async function ghGetFile(filename) {
-  const data = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`);
-  if (!data) return null;
-  try { return JSON.parse(atob(data.content.replace(/\n/g,''))); }
-  catch(e) { return null; }
+function init() {
+  setStatus('Using Local Storage — Saved locally on your device');
+  const saved = localStorage.getItem('sports-config');
+  if (saved) SPORTS = JSON.parse(saved);
+  render();
 }
 
-async function ghPutFile(filename, content, sha) {
-  const body = {
-    message: `update ${filename}`,
-    content: btoa(unescape(encodeURIComponent(JSON.stringify(content)))),
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(`${API}/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`, {
-    method: "PUT", headers: HEADERS(), body: JSON.stringify(body)
+function getMatches() {
+  const data = localStorage.getItem(`matches-${selectedDate}`);
+  return data ? JSON.parse(data) : [];
+}
+
+function saveMatches(matches) {
+  localStorage.setItem(`matches-${selectedDate}`, JSON.stringify(matches));
+}
+
+function saveSports() {
+  localStorage.setItem('sports-config', JSON.stringify(SPORTS));
+}
+
+function openModal() {
+  document.getElementById('add-modal').classList.add('open');
+  const sp = document.getElementById('modal-sport');
+  sp.innerHTML = '<option value="">-- Select Sport --</option>' + Object.keys(SPORTS).map(s=>`<option value="${s}">${s}</option>`).join('');
+  ['modal-comp','modal-teamA','modal-teamB'].forEach(id => {
+    document.getElementById(id).innerHTML = '<option value="">-- Select --</option>';
+    document.getElementById(id).disabled = true;
   });
-  return r.ok;
+  document.getElementById('modal-scoreA').value = '';
+  document.getElementById('modal-scoreB').value = '';
+  document.getElementById('modal-stage').value = '';
+  document.getElementById('modal-status').value = 'Not watched';
+}
+function closeModal() { document.getElementById('add-modal').classList.remove('open'); }
+
+function onSportChange() {
+  const sp = document.getElementById('modal-sport').value;
+  const c = document.getElementById('modal-comp');
+  if (!sp) { c.innerHTML='<option value="">-- Select Competition --</option>'; c.disabled=true; return; }
+  c.innerHTML = '<option value="">-- Select Competition --</option>' + Object.keys(SPORTS[sp]).map(l=>`<option value="${l}">${l}</option>`).join('');
+  c.disabled = false;
+  document.getElementById('modal-teamA').innerHTML='<option value="">-- Select Team A --</option>'; document.getElementById('modal-teamA').disabled=true;
+  document.getElementById('modal-teamB').innerHTML='<option value="">-- Select Team B --</option>'; document.getElementById('modal-teamB').disabled=true;
+}
+function onCompChange() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
+  const ta=document.getElementById('modal-teamA');
+  if (!comp) { ta.innerHTML='<option value="">-- Select Team A --</option>'; ta.disabled=true; return; }
+  ta.innerHTML = '<option value="">-- Select Team A --</option>' + SPORTS[sp][comp].map(t=>`<option value="${t}">${t}</option>`).join('');
+  ta.disabled = false;
+  document.getElementById('modal-teamB').innerHTML='<option value="">-- Select Team B --</option>'; document.getElementById('modal-teamB').disabled=true;
+}
+function onTeamAChange() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value, tA=document.getElementById('modal-teamA').value;
+  const tb=document.getElementById('modal-teamB');
+  if (!tA) { tb.innerHTML='<option value="">-- Select Team B --</option>'; tb.disabled=true; return; }
+  tb.innerHTML = '<option value="">-- Select Team B --</option>' + SPORTS[sp][comp].filter(t=>t!==tA).map(t=>`<option value="${t}">${t}</option>`).join('');
+  tb.disabled = false;
 }
 
-async function ghGetFileSha(filename) {
-  const data = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`);
-  return data ? data.sha : null;
+function submitMatch() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
+  const tA=document.getElementById('modal-teamA').value, tB=document.getElementById('modal-teamB').value;
+  const vA=document.getElementById('modal-scoreA').value, vB=document.getElementById('modal-scoreB').value;
+  const stage=document.getElementById('modal-stage').value.trim();
+  const status=document.getElementById('modal-status').value;
+  if (!sp||!comp||!tA||!tB) { alert('Please complete steps 1–4.'); return; }
+  
+  const matches = getMatches();
+  matches.push({ id:Date.now(), sport:sp, comp, teamA:tA, teamB:tB, scoreA:vA.trim()!==''?parseInt(vA):null, scoreB:vB.trim()!==''?parseInt(vB):null, stage:stage||null, status });
+  saveMatches(matches);
+  closeModal(); 
+  render();
 }
 
-async function ensureRepo() {
-  const repo = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}`);
-  if (!repo) {
-    await fetch(`${API}/user/repos`, {
-      method: "POST", headers: HEADERS(),
-      body: JSON.stringify({ name: REPO_NAME, private: true, auto_init: true, description: "Match diary data" })
-    });
-    await new Promise(r => setTimeout(r, 2000));
-  }
+function updateScore(id, field, value) {
+  const matches = getMatches();
+  const m = matches.find(m=>m.id===id);
+  if (m) { m[field] = value.trim()!=='' ? parseInt(value) : null; saveMatches(matches); render(); }
 }
+function updateStatus(id, status) {
+  const matches = getMatches();
+  const m = matches.find(m=>m.id===id);
+  if (m) { m.status = status; saveMatches(matches); }
+}
+function deleteMatch(id) {
+  const matches = getMatches().filter(m=>m.id!==id);
+  saveMatches(matches); render();
+}
+
+function getWinner(m) {
+  if (m.scoreA===null||m.scoreB===null||isNaN(m.scoreA)||isNaN(m.scoreB)) return null;
+  if (m.scoreA>m.scoreB) return 'A'; if (m.scoreB>m.scoreA) return 'B'; return 'D';
+}
+
+function render() {
+  const matches = getMatches();
+  const c = document.getElementById('matches');
+  if (!matches.length) { c.innerHTML=`<div class="empty">No matches logged for ${selectedDate}</div>`; return; }
+  c.innerHTML = matches.map(m => {
+    const w = getWinner(m);
+    return `<div class="match-row">
+      <span class="sport-badge">${m.sport.substring(0,5)}</span>
+      <div class="competition">${m.comp}</div>
+      <div class="match-scores">
+        <span class="team-name left ${w==='A'?'winner':''} ${w==='D'?'draw':''}">${w==='A'?'✓ ':''}${m.teamA}</span>
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreA??''}" onchange="updateScore(${m.id},'scoreA',this.value)" placeholder="-">
+        <span class="score-sep">-</span>
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreB??''}" onchange="updateScore(${m.id},'scoreB',this.value)" placeholder="-">
+        <span class="team-name right ${w==='B'?'winner':''} ${w==='D'?'draw':''}">${m.teamB}${w==='B'?' ✓':''}</span>
+      </div>
+      <div class="stage-tag">${m.stage||''}</div>
+      <select onchange="updateStatus(${m.id},this.value)">${STATUS_OPTIONS.map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      <button class="delete-btn" onclick="deleteMatch(${m.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+/* Settings */
+function openSettings() { document.getElementById('settings-modal').classList.add('open'); switchTab('sports'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function switchTab(tab) {
+  ['sports','leagues','teams'].forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('tab-'+t).className = 'tab'+(t===tab?' active':'');
+  });
+  if (tab==='leagues'||tab==='teams') populateSettingsSports();
+}
+function populateSettingsSports() {
+  const sports = Object.keys(SPORTS);
+  ['league-sport-sel','remove-league-sport','team-sport-sel','rm-team-sport'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">-- Sport --</option>' + sports.map(s=>`<option value="${s}">${s}</option>`).join('');
+  });
+  renderSportTags();
+}
+function renderSportTags() {
+  document.getElementById('sport-list').innerHTML = Object.keys(SPORTS).map(s=>
+    `<span class="tag">${s} <button onclick="removeSport('${s}')">✕</button></span>`).join('');
+}
+function addSport() {
+  const name = document.getElementById('new-sport-name').value.trim();
+  if (!name) return;
+  if (SPORTS[name]) { alert('Sport already exists.'); return; }
+  SPORTS[name] = {};
+  saveSports();
+  document.getElementById('new-sport-name').value = '';
+  renderSportTags(); populateSettingsSports();
+}
+function removeSport(name) {
+  if (!confirm(`Remove "${name}" and all its leagues?`)) return;
+  delete SPORTS[name]; saveSports(); renderSportTags(); populateSettingsSports();
+}
+function populateRemoveLeagues() {
+  const sp = document.getElementById('remove-league-sport').value;
+  const el = document.getElementById('remove-league-name');
+  el.innerHTML = '<option value="">-- League --</option>' + Object.keys(SPORTS[sp]||{}).map(l=>`<option value="${l}">${l}</option>`).join('');
+}
+function addLeague() {
+  const sp=document.getElementById('league-sport-sel').value, name=document.getElementById('new-league-name').value.trim();
+  if (!sp||!name) { alert('Select a sport and enter a league name.'); return; }
+  if (SPORTS[sp][name]) { alert('League already exists.'); return; }
+  SPORTS[sp][name] = []; saveSports();
+  document.getElementById('new-league-name').value = '';
+  alert(`"${name}" added to ${sp}.`);
+}
+function removeLeague() {
+  
+const sp=document.getElementById('remove-league-sport').value, name=document.getElementById('remove-league-name').value;
+  if (!sp||!name) { alert('Select a sport and league.'); return; }
+  if (!confirm(`Remove "${name}" from ${sp}?`)) return;
+  delete SPORTS[sp][name]; saveSports();
+  populateRemoveLeagues(); alert(`"${name}" removed.`);
+}
+function populateTeamLeagues(targetId) {
+  const sportSelId = targetId==='team-league-sel' ? 'team-sport-sel' : 'rm-team-sport';
+  const sp = document.getElementById(sportSelId).value;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.innerHTML = '<option value="">-- League --</option>' + Object.keys(SPORTS[sp]||{}).map(l=>`<option value="${l}">${l}</option>`).join('');
+}
+function populateRmTeams() {
+  const sp=document.getElementById('rm-team-sport').value, league=document.getElementById('rm-team-league').value;
+  const el=document.getElementById('rm-team-name');
+  el.innerHTML = '<option value="">-- Team --</option>' + (SPORTS[sp]&&SPORTS[sp][league]?SPORTS[sp][league]:[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+function addTeam() {
+  const sp=document.getElementById('team-sport-sel').value, league=document.getElementById('team-league-sel').value, name=document.getElementById('new-team-name').value.trim();
+  if (!sp||!league||!name) { alert('Select a sport, league, and enter a team name.'); return; }
+  if (SPORTS[sp][league].includes(name)) { alert('Team already exists.'); return; }
+  SPORTS[sp][league].push(name); SPORTS[sp][league].sort(); saveSports();
+  document.getElementById('new-team-name').value = '';
+  alert(`"${name}" added to ${league}.`);
+}
+function removeTeam() {
+  const sp=document.getElementById('rm-team-sport').value, league=document.getElementById('rm-team-league').value, name=document.getElementById('rm-team-name').value;
+  if (!sp||!league||!name) { alert('Select sport, league, and team.'); return; }
+  if (!confirm(`Remove "${name}" from ${league}?`)) return;
+  SPORTS[sp][league] = SPORTS[sp][league].filter(t=>t!==name); saveSports();
+  populateRmTeams(); alert(`"${name}" removed.`);
+}
+
+// Start the app
+init();
 
 const DEFAULT_SPORTS = {
   Football:{
