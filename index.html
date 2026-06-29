@@ -347,9 +347,11 @@ async function init() {
     if (saved) SPORTS = saved;
     setStatus('Connected — data saves to GitHub automatically');
   } catch(e) {
+    console.error(e);
     setStatus('Could not connect to GitHub. Check your token.', 'error');
   }
-  render();
+  // Force an initial render even if GitHub is slow connecting
+  await render(); 
 }
 
 async function getMatches() {
@@ -415,13 +417,31 @@ async function submitMatch() {
   const vA=document.getElementById('modal-scoreA').value, vB=document.getElementById('modal-scoreB').value;
   const stage=document.getElementById('modal-stage').value.trim();
   const status=document.getElementById('modal-status').value;
+  
   if (!sp||!comp||!tA||!tB) { alert('Please complete steps 1–4.'); return; }
+  
   setStatus('Saving…', 'loading');
-  const matches = await getMatches();
-  matches.push({ id:Date.now(), sport:sp, comp, teamA:tA, teamB:tB, scoreA:vA.trim()!==''?parseInt(vA):null, scoreB:vB.trim()!==''?parseInt(vB):null, stage:stage||null, status });
-  await saveMatches(matches);
-  setStatus('Saved to GitHub');
-  closeModal(); render();
+  try {
+    const matches = await getMatches();
+    matches.push({ 
+      id:Date.now(), 
+      sport:sp, 
+      comp, 
+      teamA:tA, 
+      teamB:tB, 
+      scoreA:vA.trim()!==''?parseInt(vA):null, 
+      scoreB:vB.trim()!==''?parseInt(vB):null, 
+      stage:stage||null, 
+      status 
+    });
+    await saveMatches(matches);
+    setStatus('Saved to GitHub');
+    closeModal(); 
+    await render(); // Await the re-render so it updates visually right away
+  } catch (error) {
+    console.error(error);
+    setStatus('Error saving match data.', 'error');
+  }
 }
 
 async function updateScore(id, field, value) {
