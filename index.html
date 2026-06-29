@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Match Diary</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Work Sans',sans-serif;background:#ede8dd;color:#3d3428;padding:2rem;min-height:100vh;}
+.container{max-width:1200px;margin:0 auto;}
+h1{font-size:28px;margin-bottom:0.5rem;color:#3d3428;}
+.subtitle{font-size:14px;color:#6b5d4f;margin-bottom:2rem;}
+.top-bar{display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;}
+.date-label{font-size:14px;font-weight:600;color:#6b5d4f;}
+.date-input{padding:8px 12px;font-size:14px;border:1px solid #d4c4a8;border-radius:8px;background:#faf8f3;color:#3d3428;font-family:'Work Sans',sans-serif;cursor:pointer;}
+.btn{padding:10px 16px;background:#e8dcc8;color:#7a6449;border:1px solid #d4c4a8;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;font-family:'Work Sans',sans-serif;}
+.btn:hover{background:#f5e6d3;}
+.btn.settings{margin-left:auto;}
+.match-row{display:grid;grid-template-columns:90px 140px 1fr 80px 140px 24px;gap:16px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(61,52,40,0.08);}
+.match-row:hover{background:#f5f1e8;padding:12px 8px;margin:0 -8px;border-radius:6px;}
+.sport-badge{padding:4px 8px;background:#e8dcc8;color:#7a6449;border-radius:5px;font-size:9px;font-weight:600;text-transform:uppercase;text-align:center;}
+.competition{font-size:11px;color:#6b5d4f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.match-scores{display:flex;align-items:center;gap:8px;min-width:0;}
+.team-name{font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.team-name.left{text-align:right;}
+.team-name.right{text-align:left;}
+.score-box{width:32px;height:28px;text-align:center;font-size:14px;font-weight:700;border:1px solid rgba(61,52,40,0.08);border-radius:6px;background:#faf8f3;font-family:'Space Mono',monospace;padding:0;color:#3d3428;}
+.score-sep{font-size:12px;color:#6b5d4f;}
+select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px;background:#faf8f3;color:#3d3428;cursor:pointer;font-family:'Work Sans',sans-serif;}
+.delete-btn{padding:0;border:none;background:transparent;color:#6b5d4f;opacity:0.5;font-size:14px;cursor:pointer;}
+.delete-btn:hover{opacity:1;color:#ba4c4c;}
+.empty{text-align:center;padding:3rem;color:#6b5d4f;}
+.stage-tag{font-size:10px;color:#6b5d4f;font-family:'Space Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;}
+.winner{color:#6d7a4b;font-weight:700;}
+.draw{color:#7a6449;}
+.status-bar{font-size:12px;color:#6b5d4f;padding:6px 0 14px;display:flex;align-items:center;gap:6px;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#6d7a4b;display:inline-block;flex-shrink:0;}
+.status-dot.loading{background:#d4a84b;animation:pulse 1s infinite;}
+.status-dot.error{background:#ba4c4c;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(61,52,40,0.4);backdrop-filter:blur(2px);z-index:1000;justify-content:center;align-items:center;}
+.overlay.open{display:flex;}
+.modal{background:#ede8dd;border:2px solid #3d3428;border-radius:12px;padding:2rem;width:90%;max-width:520px;box-shadow:0 10px 25px rgba(0,0,0,0.1);max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:20px;margin-bottom:1.5rem;border-bottom:1px solid rgba(61,52,40,0.1);padding-bottom:0.5rem;}
+.form-group{margin-bottom:1.2rem;display:flex;flex-direction:column;gap:6px;}
+.form-group label{font-size:12px;font-weight:700;color:#6b5d4f;text-transform:uppercase;}
+.form-group select,.form-group input[type=text],.form-group input[type=number]{width:100%;padding:10px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px;background:#faf8f3;color:#3d3428;font-family:'Work Sans',sans-serif;}
+.score-row{display:flex;align-items:center;gap:12px;}
+.score-row input{text-align:center;font-family:'Space Mono',monospace;font-weight:700;flex:1;}
+.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:1.5rem;}
+.modal-btn{padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Work Sans',sans-serif;}
+.modal-btn.save{background:#6d7a4b;color:white;border:none;}
+.modal-btn.save:hover{background:#5a6840;}
+.modal-btn.cancel{background:transparent;border:1px solid #6b5d4f;color:#6b5d4f;}
+.modal-btn.cancel:hover{background:#e8dcc8;}
+.tabs{display:flex;gap:2px;margin-bottom:1.5rem;background:#e8dcc8;border-radius:8px;padding:3px;}
+.tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;border-radius:6px;color:#7a6449;border:none;background:transparent;font-family:'Work Sans',sans-serif;}
+.tab.active{background:#ede8dd;color:#3d3428;}
+.settings-section{margin-bottom:2rem;}
+.settings-section h4{font-size:13px;font-weight:700;color:#6b5d4f;text-transform:uppercase;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(61,52,40,0.1);}
+.settings-row{display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap;}
+.settings-row select,.settings-row input{flex:1;min-width:100px;padding:8px 10px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px;background:#faf8f3;color:#3d3428;font-family:'Work Sans',sans-serif;}
+.btn-sm{padding:6px 12px;font-size:12px;background:#6d7a4b;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;white-space:nowrap;font-family:'Work Sans',sans-serif;}
+.btn-sm:hover{background:#5a6840;}
+.btn-sm.danger{background:#ba4c4c;}
+.btn-sm.danger:hover{background:#9a3c3c;}
+.tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.tag{padding:4px 10px;background:#e8dcc8;color:#7a6449;border-radius:20px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.tag button{background:none;border:none;cursor:pointer;color:#7a6449;font-size:11px;padding:0;line-height:1;}
+.tag button:hover{color:#ba4c4c;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Match diary</h1>
+  <p class="subtitle">Track matches you plan to watch and update results</p>
+  <div class="top-bar">
+    <span class="date-label">Select Day:</span>
+    <input type="date" id="diary-date" class="date-input">
+    <button class="btn" onclick="openModal()">+ Add match</button>
+    <button class="btn settings" onclick="openSettings()">⚙ Manage leagues</button>
+  </div>
+  <div id="status-bar" class="status-bar">
+    <span class="status-dot loading" id="sdot"></span>
+    <span id="status-msg">Connecting to GitHub…</span>
+  </div>
+  <div id="matches"></div>
+</div>
+
+<!-- Add Match Modal -->
+<div class="overlay" id="add-modal">
+  <div class="modal">
+    <h3>Log New Match</h3>
+    <div class="form-group">
+      <label>1. Choose Sport</label>
+      <select id="modal-sport" onchange="onSportChange()"><option value="">-- Select Sport --</option></select>
+    </div>
+    <div class="form-group">
+      <label>2. Choose Competition</label>
+      <select id="modal-comp" onchange="onCompChange()" disabled><option value="">-- Select Competition --</option></select>
+    </div>
+    <div class="form-group">
+      <label>3. Choose Team A</label>
+      <select id="modal-teamA" onchange="onTeamAChange()" disabled><option value="">-- Select Team A --</option></select>
+    </div>
+    <div class="form-group">
+      <label>4. Choose Team B</label>
+      <select id="modal-teamB" disabled><option value="">-- Select Team B --</option></select>
+    </div>
+    <div class="form-group">
+      <label>5. Week / Stage (Optional)</label>
+      <input type="text" id="modal-stage" placeholder="e.g. GW38, Quarter-Final, MD12…">
+    </div>
+    <div class="form-group">
+      <label>6. Enter Initial Scores (Optional)</label>
+      <div class="score-row">
+        <input type="number" id="modal-scoreA" placeholder="-" min="0">
+        <span>vs</span>
+        <input type="number" id="modal-scoreB" placeholder="-" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>7. Watch Status</label>
+      <select id="modal-status">
+        <option>Not watched</option><option>Full</option><option>Highlights</option><option>Just score</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-btn save" onclick="submitMatch()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settings-modal">
+  <div class="modal" style="max-width:600px;">
+    <h3>Manage Leagues &amp; Teams</h3>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('sports')" id="tab-sports">Sports</button>
+      <button class="tab" onclick="switchTab('leagues')" id="tab-leagues">Leagues</button>
+      <button class="tab" onclick="switchTab('teams')" id="tab-teams">Teams</button>
+    </div>
+    <div id="pane-sports">
+      <div class="settings-section">
+        <h4>Add new sport</h4>
+        <div class="settings-row">
+          <input type="text" id="new-sport-name" placeholder="e.g. Tennis, Rugby, Cricket">
+          <button class="btn-sm" onclick="addSport()">Add sport</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Existing sports</h4>
+        <div id="sport-list" class="tag-list"></div>
+      </div>
+    </div>
+    <div id="pane-leagues" style="display:none;">
+      <div class="settings-section">
+        <h4>Add new league</h4>
+        <div class="settings-row">
+          <select id="league-sport-sel"><option value="">-- Sport --</option></select>
+          <input type="text" id="new-league-name" placeholder="e.g. Serie B, NBA G League">
+          <button class="btn-sm" onclick="addLeague()">Add</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Remove league</h4>
+        <div class="settings-row">
+          <select id="remove-league-sport" onchange="populateRemoveLeagues()"><option value="">-- Sport --</option></select>
+          <select id="remove-league-name"><option value="">-- League --</option></select>
+          <button class="btn-sm danger" onclick="removeLeague()">Remove</button>
+        </div>
+      </div>
+    </div>
+    <div id="pane-teams" style="display:none;">
+      <div class="settings-section">
+        <h4>Add team to a league</h4>
+        <div class="settings-row">
+          <select id="team-sport-sel" onchange="populateTeamLeagues('team-league-sel')"><option value="">-- Sport --</option></select>
+          <select id="team-league-sel"><option value="">-- League --</option></select>
+        </div>
+        <div class="settings-row" style="margin-top:6px;">
+          <input type="text" id="new-team-name" placeholder="Team name">
+          <button class="btn-sm" onclick="addTeam()">Add team</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Remove team</h4>
+        <div class="settings-row">
+          <select id="rm-team-sport" onchange="populateTeamLeagues('rm-team-league');document.getElementById('rm-team-name').innerHTML='<option value=\\'\\'>-- Team --</option>'"><option value="">-- Sport --</option></select>
+          <select id="rm-team-league" onchange="populateRmTeams()"><option value="">-- League --</option></select>
+          <select id="rm-team-name"><option value="">-- Team --</option></select>
+          <button class="btn-sm danger" onclick="removeTeam()">Remove</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeSettings()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  ★  PASTE YOUR GITHUB TOKEN ON THE NEXT LINE
+// ─────────────────────────────────────────────
+const GITHUB_TOKEN = "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";
+const GITHUB_USERNAME = "Akfys";
+const REPO_NAME = "match-diary";
+// ─────────────────────────────────────────────
+
+const API = "https://api.github.com";
+const HEADERS = () => ({
+  "Authorization": `token ${GITHUB_TOKEN}`,
+  "Content-Type": "application/json",
+  "Accept": "application/vnd.github.v3+json"
+});
+
+async function ghGet(path) {
+  const r = await fetch(`${API}${path}`, { headers: HEADERS() });
+  if (!r.ok) return null;
+  return r.json();
+}
+
+async function ghGetFile(filename) {
+  const data = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`);
+  if (!data) return null;
+  try { return JSON.parse(atob(data.content.replace(/\n/g,''))); }
+  catch(e) { return null; }
+}
+
+async function ghPutFile(filename, content, sha) {
+  const body = {
+    message: `update ${filename}`,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(content)))),
+  };
+  if (sha) body.sha = sha;
+  const r = await fetch(`${API}/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`, {
+    method: "PUT", headers: HEADERS(), body: JSON.stringify(body)
+  });
+  return r.ok;
+}
+
+async function ghGetFileSha(filename) {
+  const data = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/data/${filename}`);
+  return data ? data.sha : null;
+}
+
+async function ensureRepo() {
+  const repo = await ghGet(`/repos/${GITHUB_USERNAME}/${REPO_NAME}`);
+  if (!repo) {
+    await fetch(`${API}/user/repos`, {
+      method: "POST", headers: HEADERS(),
+      body: JSON.stringify({ name: REPO_NAME, private: true, auto_init: true, description: "Match diary data" })
+    });
+    await new Promise(r => setTimeout(r, 2000));
+  }
+}
+
+const DEFAULT_SPORTS = {
+  Football:{
+    'Premier League':['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton','Chelsea','Coventry','Crystal Palace','Everton','Fulham','Ipswich Town','Hull City','Leeds','Liverpool','Manchester City','Manchester United','Newcastle United','Nottingham Forest','Sunderland','Tottenham Hotspur'],
+    'La Liga':['Alaves','Athletic Bilbao','Atletico Madrid','Barcelona','Celta Vigo','Deportivo La Coruña','Elche','Espanyol','Getafe','Levante','Malaga','Osasuna','Racing Stantander','Rayo Vallecano','Real Betis','Real Madrid','Real Sociedad','Sevilla','Valencia','Villarreal'],
+    'Serie A':['Atalanta','Bologna','Cagliari','Como','Fiorentina','Frosinone','Genoa','Inter Milan','Juventus','Lazio','Lecce','AC Milan','Monza','Napoli','Parma','Roma','Sassuolo','Torino','Udinese','Venezia','Verona'],
+    'Bundesliga':['Augsburg','Bayer Leverkusen','Bayern Munich','Borussia Dortmund','SV Elversberg','Borussia Monchengladbach','Eintracht Frankfurt','HSV','Hoffenheim','FC Koln','Mainz 05','RB Leipzig','SC Freiburg','VfB Stuttgart','Schalke 04','SC Paderborn','Werder Bremen','Union Berlin'],
+    'Ligue 1':['Angers','Auxerre','Brest','Le Havre','Le Mans','Lens','Lille','Lorient','Lyon','Marseille','Monaco','Nice','Paris FC','PSG','Rennes','Strasbourg','Toulouse','Troyes'],
+    'Eredivisie':['ADO Den Haag','Ajax','AZ','Cambuur','Excelsior','Feyenoord','Go Ahead Eagles','Groningen','Heerenveen','NEC','PSV','Spara Rotterdam','Fortuna Sittard','Telstar','Twente','Utrecht','PEC Zwolle','Willem II'],
+    'Primeira Liga':['Academico de Viseu','Alverca','Arouca','Benfica','Braga','Casa Pia','Estoril','Estrela','Famalicao','Gil Vicente','Maritmo','Moreirense','Nacional','Porto','Rio Ave','Santa Clara','Sporting CP','Vitoria de Guimaraes'],
+    'Belgian Pro':['Anderlecht','Antwerp','Baveren','Cercle Brugge','Charleori','Club Brugge','Genk','Gent','Kotrijk','La Louviere','Lommel','Machelen','OH Leuven','Saint-Truiden','Santdard Liege','USG','Westerlo','Zulte Waregem'],
+    'Super League Greece':['AEK','Kifisia','Aris','Asteras Tripolis','Atromitos','Iraklis','Kalamata','Levadiakos','OFI','Olympiacos','Panathinaikos','Panetolikos','PAOK','Volos'],
+    'Super Lig Turkey':['Alanyaspor','Amedspor','İstanbul Başakşehir','Beşiktaş','Çorum','Erzurumspor','Eyüpspor','Fenerbahçe','Galatasaray','Gaziantep','Gençlerbirliği','Göztepe','Kasimpaşa','Kocaelispor','Konyaspor','Rizespor','Samsunspor','Trabzonspor'],
+    'Austrian Bundesliga':['Austria Lustenau','RB Salzburg','Austria Wien','Grazer AK','LASK','Altach','Rapid Wien','Sturm Graz','Ried','Hartberg','Wolfsberg','WSG Tirol'],
+    'Liga I Romania':['Argeș Pitești','Botoșani','CFR Cluj','Corvinul Hunedoara','Csikszereda Miercurea Ciuc','Dinamo București','Farul Constanța','FCSB','Oțelul Galați','Petrolul Ploiești','Rapid București','Sepsi OSK Sfântu Gheorghe','Universitatea Cluj','Universitatea Craiova','UTA Arad','Voluntari'],
+    'Czech First League':['Bohemians 1905','Hradec Králové','Jablonec','Karviná','Slovan Liberec','Mladá Boleslav','Sigma Olomouc','Baník Ostrava','Pardubice','Viktoria Plzeň','Slavia Prague','Slovácko','Sparta Prague','Teplice','Zbrojovka Brno','Zlín'],
+    'Scottish Premiership':['Aberdeen','Celtic','Dundee','Dundee United','Falkirk','Heart of Midlothian','Hibernian','Kilmarnock','Motherwell','Rangers','St Johnstone','St Mirren'],
+    'Swiss Super League':['Basel','Grasshopper','Lausanne-Sport','Lugano','Luzern','Servette','Sion','St. Gallen','Thun','Vaduz','Young Boys','Zürich'],
+    'HNL':['Dinamo Zagreb','Hajduk Split','Varaždin','Rijeka','Lokomotiva Zagreb','Istra 1961','Gorica','Slaven Belupo','Osijek','Rudeš'],
+    'Danish Superliga':['AGF','Brøndby','Copenhagen','Horsens','Lyngby','Midtjylland','Nordsjælland','OB','Randers','Silkeborg','Sønderjyske','Viborg'],
+    'Russian Premier League':['Zenit St. Petersburg','FC Krasnodar','Lokomotiv Moscow','Spartak Moscow','CSKA Moscow','Baltika Kaliningrad','Dynamo Moscow','Rubin Kazan','Akhmat Grozny','FC Rostov','Krylya Sovetov Samara','FC Orenburg','Akron Tolyatti','Dinamo Makhachkala','Rodina Moscow','Fakel Voronezh'],
+    'Ukrainian Premier League':['Shakhtar Donetsk','Polissya Zhytomyr','LNZ Cherkasy','Dynamo Kyiv','FC Kharkiv','Kryvbas Kryvyi Rih','Kolos Kovalivka','Zorya Luhansk','Karpaty Lviv','NK Veres Rivne','Obolon Kyiv','Epitsentr Kamyanets-Podilskyi','FC Kudrivka','Bukovyna Chernivtsi','Chornomorets Odesa','Livyi Bereh Kyiv'],
+    'Serbian SuperLiga':['Crvena zvezda','Cukaricki','IMT','FK Macva Sabac','Mladost Lucani','Novi Pazar','OFK Beograd','Partizan','Radnicki Nis','Radnicki 1923','Radnik Surdulica','Vojvodina','Zemun','Zeleznicar Pancevo'],
+    'Polish Ekstraklasa':['Lech Poznań','Górnik Zabrze','Jagiellonia Białystok','Raków Częstochowa','GKS Katowice','Legia Warszawa','Zagłębie Lubin','Wisła Płock','Pogoń Szczecin','Radomiak Radom','Korona Kielce','Motor Lublin','Cracovia','Widzew Łódź','Piast Gliwice','Wisła Kraków','Śląsk Wrocław','Wieczysta Kraków'],
+    'Cypriot First Division':['APOEL Nicosia','AEK Larnaca','AEL Limassol','Anorthosis Famagusta','Krasava ENY','Apollon Limassol','Aris Limassol','Karmiotissa FC','Nea Salamina Famagusta','Olympiakos Nicosia','Omonia Nicosia','Omonia 29 May','Omonia Aradippou','Pafos FC'],
+    'NB I':['ETO FC','Ferencvárosi TC','Paks FC','Debreceni VSC','Zalaegerszegi TE FC','Puskás Akadémia FC','Újpest FC','Nyíregyháza Spartacus','Kisvárda FC','MTK Budapest','Vasas FC','Budapest Honvéd FC'],
+    'Bulgarian First League':['Levski Sofia','CSKA 1948','Ludogorets Razgrad','CSKA Sofia','Cherno More Varna','Lokomotiv Plovdiv','Arda Kardzhali','Botev Plovdiv','Botev Vratsa','Lokomotiv Sofia','Slavia Sofia','Spartak Varna','Septemvri Sofia','Dunav Ruse'],
+    'MLS':['Nashville SC','Vancouver Whitecaps FC','San Jose Earthquakes','Inter Miami CF','Chicago Fire FC','Real Salt Lake','New England Revolution','FC Dallas','Los Angeles FC','Seattle Sounders FC','Houston Dynamo FC','Minnesota United FC','New York Red Bulls','Charlotte FC','LA Galaxy','FC Cincinnati','New York City FC','D.C. United','San Diego FC','Colorado Rapids','Columbus Crew','St. Louis City SC','Portland Timbers','CF Montréal','Orlando City SC','Toronto FC','Austin FC','Atlanta United FC','Sporting Kansas City','Philadelphia Union'],
+    'Liga MX':['CF América','CF Atlante','Atlas Guadalajara','Atlético de San Luis','CD Cruz Azul','Deportivo Guadalajara','FC Juárez','Club León FC','CF Monterrey','Club Necaxa','CF Pachuca','Puebla FC','Querétaro FC','Santos Laguna','Tigres UANL','Club Tijuana','Deportivo Toluca','UNAM Pumas'],
+    'Brasileirão Série A':['Palmeiras','Flamengo','Fluminense','Athletico Paranaense','Red Bull Bragantino','Bahia','Coritiba','São Paulo','Atlético Mineiro','Corinthians','Cruzeiro','Botafogo','Vitória','Internacional','Santos','Grêmio','Vasco da Gama','Remo','Mirassol','Chapecoense'],
+    'Chilean Primera División':['Colo-Colo','Universidad Católica','Universidad de Chile','Coquimbo Unido','Palestino','Huachipato','Everton','Ñublense','Deportes Limache',"O'Higgins",'Universidad de Concepción','Deportes La Serena','Audax Italiano','Deportes Concepción','Cobresal','Unión La Calera'],
+    'Categoría Primera A':['Águilas Doradas','Alianza','América de Cali','Atlético Bucaramanga','Atlético Nacional','Boyacá Chicó','Cúcuta Deportivo','Deportes Tolima','Deportivo Cali','Deportivo Pasto','Deportivo Pereira','Fortaleza','Independiente Medellín','Internacional de Bogotá','Jaguares','Junior','Llaneros','Millonarios','Once Caldas','Santa Fe'],
+    'Liga Ecuador Pro':['Independiente del Valle','Deportivo Cuenca','Universidad Católica','Barcelona','Aucas','LDU Quito','Orense','Emelec','Técnico Universitario','Macará','Guayaquil City','Mushuc Runa','Leones','Libertad','Delfín','Manta'],
+    'Paraguayan Primera División':['Olimpia','Nacional','Cerro Porteño','Sportivo Ameliano','Sportivo Trinidense','Libertad','Guaraní','Recoleta','Rubio Ñu','2 de Mayo','Sportivo Luqueño','San Lorenzo'],
+    'Peruvian Liga 1':['ADT','Alianza Atlético','Alianza Lima','Atlético Grau','Cajamarca','Cienciano','Comerciantes Unidos','Cusco','Deportivo Garcilaso','Deportivo Moquegua','Juan Pablo II College','Los Chankas','Melgar','Sport Boys','Sport Huancayo','Sporting Cristal','Universitario','UTC'],
+    'Uruguayan Primera División':['Deportivo Maldonado','Racing','Peñarol','Albion','Nacional','Central Español','Montevideo City Torque','Montevideo Wanderers','Liverpool','Cerro Largo','Defensor Sporting','Boston River','Danubio','Juventud','Progreso','Cerro'],
+    'Bolivian Primera División':['Always Ready','The Strongest','Aurora','Bolívar','Blooming','Independiente Petrolero','Guabirá','Universitario de Vinto','Oriente Petrolero','ABB','Nacional Potosí','San Antonio Bulo Bulo','Real Potosí','Real Oruro','Real Tomayapo','GV San José'],
+    'Venezuelan Primera División':['Deportivo La Guaira','Metropolitanos','Deportivo Táchira','Universidad Central','Portuguesa','Estudiantes de Mérida','Carabobo','Academia Puerto Cabello','Zamora','Caracas','Rayo Zuliano','Monagas','Anzoátegui','Trujillanos'],
+    'Egyptian Premier League':['Wadi Degla FC','Modern Sport Club','Bank El Ahly','Cleopatra FC','Zed FC','Pyramids FC','Abo Qir Fertilizers','Qanah FC','Smouha SC','El Gouna FC','Al Ahly FC','Petrol Asyut','Ghazl El Mahalla','Petrojet',"Tala'ea El Gaish",'Enppi SC','El Masry SC','Ittihad Alexandria SC','El Mokawloon SC','Zamalek SC'],
+    'Tunisian Ligue 1':['Club Africain','Espérance Tunis','CS Sfaxien','Stade Tunisien','US Monastir','ES Zarzis','Etoile Sportive du Sahel','Etoile Sportive Metlaoui','Jeunesse Sportive Omrane','Union Sportive de Ben Guerdane','AS Marsa','Club Athlétique Bizertin','Olympique Béja','CS Hammam-Lif','ES Hammam Sousse','Progrès Sportif Sakiet Eddaier'],
+    'Algerian Ligue 1':['ASO Chlef','CR Belouizdad','CR Témouchent','CS Constantine','ES Ben Aknoun','ES Sétif','JS El Biar','JS Kabylie','JS Saoura','MB Rouissat','MC Alger','MC Oran','Olympique Akbou','US Biskra','USM Alger','USM Khenchela'],
+    'Moroccan Botola Pro':['AS FAR','RS Berkane','Raja CA','MAS Fez','Wydad AC','IR Tanger','DH Jadida','FUS Rabat','COD Meknes','KAC Marrakech','HUS Agadir','RCA Zemmamra','UTS Rabat','Olympique Dcheira','US Yacoub Mansour','OC Safi'],
+    'Dawri Roshn':['Abha','Al-Ahli','Al-Diriyah','Al-Ettifaq','Al-Faisaly','Al Fateh','Al-Fayha','Al-Hazem','Al-Hilal','Al-Ittihad','Al-Khaleej','Al-Kholood','Al-Nassr','Al-Qadsiah','Al-Riyadh','Al-Shabab','Al-Taawoun','Neom'],
+    'Qatar Stars League':['Al-Ahli SC','Al-Arabi SC','Al-Duhail SC','Al-Gharafa SC','Al-Rayyan SC','Al-Sadd SC','Al-Sailiya SC','Al-Shahania SC','Al-Shamal SC','Al-Wakrah SC','Lusail SC','Qatar SC'],
+    'UAE Pro League':['Al-Ain','Shabab Al-Ahli','Al-Wasl','Al-Jazira','Al-Wahda','Al-Nasr','Ajman Club','Sharjah FC','Khor Fakkan','FC Baniyas','Kalba FC','Al-Dhafra FC','Hatta','United FC'],
+    'J1 League':['Avispa Fukuoka','Cerezo Osaka','Fagiano Okayama','Gamba Osaka','JEF United Chiba','Kashima Antlers','Kashiwa Reysol','Kawasaki Frontale','Machida Zelvia','Mito HollyHock','Nagoya Grampus','Kyoto Sanga','Sanfrecce Hiroshima','Shimizu S-Pulse','FC Tokyo','Tokyo Verdy','Urawa Red Diamonds','V-Varen Nagasaki','Vissel Kobe','Yokohama F. Marinos'],
+    'K League 1':['FC Seoul','Ulsan HD','Jeonbuk Hyundai Motors','Gangwon FC','Pohang Steelers','Incheon United','FC Anyang','Jeju SK','Bucheon FC 1995','Daejeon Hana Citizen','Gimcheon Sangmu','Gwangju FC'],
+    'Chinese Super League':['Chengdu Rongcheng','Chongqing Tonglianglong','Dalian Yingbo','Yunnan Yukun','Shandong Taishan','Qingdao West Coast','Liaoning Tieren','Zhejiang','Shenzhen Peng City','Beijing Guoan','Henan','Shanghai Shenhua','Qingdao Hainiu','Shanghai Port','Wuhan Three Towns','Tianjin Jinmen Tiger'],
+    'World Cup':['Argentina','Australia','Belgium','Brazil','Cameroon','Canada','Croatia','Denmark','Ecuador','Egypt','England','France','Germany','Ghana','Iran','Japan','Mexico','Morocco','Netherlands','Nigeria','Poland','Portugal','Saudi Arabia','Senegal','Serbia','South Korea','Spain','Switzerland','Tunisia','USA','Uruguay','Costa Rica','Panama','Jamaica','Honduras','Guatemala','Bolivia','Chile','Colombia','Peru','Venezuela','Algeria','Côte d\'Ivoire','DR Congo','Mali','South Africa','Zambia','Bahrain','Iraq','Jordan','Kuwait','New Zealand','Tahiti']
+  },
+  Basketball:{
+    'NBA':['Atlanta Hawks','Boston Celtics','Brooklyn Nets','Charlotte Hornets','Chicago Bulls','Cleveland Cavaliers','Dallas Mavericks','Denver Nuggets','Detroit Pistons','Golden State Warriors','Houston Rockets','Indiana Pacers','LA Clippers','Los Angeles Lakers','Memphis Grizzlies','Miami Heat','Milwaukee Bucks','Minnesota Timberwolves','New Orleans Pelicans','New York Knicks','Oklahoma City Thunder','Orlando Magic','Philadelphia 76ers','Phoenix Suns','Portland Trail Blazers','Sacramento Kings','San Antonio Spurs','Toronto Raptors','Utah Jazz','Washington Wizards'],
+    'EuroLeague':['Anadolu Efes','Barcelona','Baskonia','Bayern Munich','Beşiktaş','Crvena zvezda','Dubai','EA7 Milan','Fenerbahce','Hapoel Tel Aviv','ASVEL','Maccabi Tel Aviv','Olympiacos','Panathinaikos','Paris','Partizan','Real Madrid','Valencia','Virtus Bologna','Žalgiris'],
+    'EuroCup':['Budućnost VOLI','ratiopharm Ulm','PAOK','Hapoel Midtown Jerusalem','U-BT Cluj-Napoca','Niners Chemnitz','Aris Betsson','La Laguna Tenerife','Cedevita Olimpija','Skyliners Frankfurt','Neptūnas','London Lions','AS Monaco','Umana Reyer Venezia','Lietkabelis','Le Mans Sarthe','Basket Tortona','Bahçeşehir Koleji','Cosea JL Bourg','Dolomiti Energia Trento','Türk Telekom','Maxima Roma','Kids&Us Manresa','Rostock Seawolves','Śląsk Wrocław','Napoli Basketball','Recoletos Salud San Pablo Burgos','Rīgas Zeļļi','Tofaş','Roma SPQR','Balkan Botevgrad','Šiauliai'],
+    'Basketball Champions League':['Asisa Joventut','UCAM Murcia','Surne Bilbao','Unicaja','Nanterre 92','Cholet','SIG Strasbourg','Alba Berlin','BMA365 Bamberg','Telekom Baskets Bonn','Slavia Prague ERA NBK','KVIS Pardubice','AEK','Peristeri Betsson','Hapoel Netanel Holon','Bnei Penlink Herzliya','Pallacanestro Reggiana','Openjobmetis Varese','Juventus','Rytas','Trabzonspor','Galatasaray MCT Technic','Sabah','Windrose Giants Antwerp','Igokea m:tel','Cibona','Falco Szombathely','Legia Warsaw','Porto','Spartak Office Shoes','Fitness First Würzburg Baskets','Rasta Vechta','Kolossos H Hotels','Promitheas Patras','Fribourg Olympic','Lions de Genève','Yukatel Merkezefendi','Glint Manisa Basket','Vienna','Absheron Lions','Rilski Sportist','Petrolina AEK Larnaca','Opava','Bakken Bears','Salon Vilpas','Batumi','VEF Riga','Landstede Hammers','Dziki Warsaw','Benfica','CSM CSU Raiffeisen Oradea','Patrioti Levice','Río Breogán','Manchester Basketball']
+  },
+  AmericanFootball:{
+    'NFL':['Cardinals','Falcons','Ravens','Bills','Panthers','Bears','Bengals','Browns','Cowboys','Broncos','Lions','Packers','Texans','Colts','Jaguars','Chiefs','Raiders','Chargers','Rams','Dolphins','Vikings','Patriots','Saints','Giants','Jets','Eagles','Steelers','49ers','Seahawks','Buccaneers','Titans','Commanders']
+  },
+  Handball:{
+    'EHF Champions League':['Aalborg Håndbold','Barça','HBC Nantes','SC Magdeburg','Veszprém HC','Sporting CP','Montpellier Handball','Paris Saint-Germain','Füchse Berlin','MT Melsungen','Pick Szeged','Industria Kielce','HC Zagreb','GOG','Kolstad Handball','Orlen Wisła Płock','FC Porto','CS Dinamo București','SAH Aarhus','HC Vardar 1961','RK Celje Pivovarna Laško','RK Partizan AdmiralBet','HC Kriens-Luzern','IFK Kristianstad']
+  }
+};
+
+const STATUS_OPTIONS = ['Not watched','Full','Highlights','Just score'];
+let SPORTS = JSON.parse(JSON.stringify(DEFAULT_SPORTS));
+let selectedDate = new Date().toISOString().split('T')[0];
+let shasCache = {};
+
+document.getElementById('diary-date').value = selectedDate;
+document.getElementById('diary-date').addEventListener('change', e => { selectedDate = e.target.value; render(); });
+
+function setStatus(msg, state='ok') {
+  document.getElementById('status-msg').textContent = msg;
+  const dot = document.getElementById('sdot');
+  dot.className = 'status-dot' + (state==='loading' ? ' loading' : state==='error' ? ' error' : '');
+}
+
+async function init() {
+  if (GITHUB_TOKEN === "PASTE_YOUR_TOKEN_HERE") {
+    setStatus('⚠ Open this file in Notepad and paste your GitHub token — see instructions', 'error');
+    return;
+  }
+  setStatus('Connecting to GitHub…', 'loading');
+  try {
+    await ensureRepo();
+    const saved = await ghGetFile('sports-config.json');
+    if (saved) SPORTS = saved;
+    setStatus('Connected — data saves to GitHub automatically');
+  } catch(e) {
+    setStatus('Could not connect to GitHub. Check your token.', 'error');
+  }
+  render();
+}
+
+async function getMatches() {
+  const filename = `matches-${selectedDate}.json`;
+  const data = await ghGetFile(filename);
+  return data || [];
+}
+
+async function saveMatches(matches) {
+  const filename = `matches-${selectedDate}.json`;
+  const sha = await ghGetFileSha(filename);
+  await ghPutFile(filename, matches, sha);
+}
+
+async function saveSports() {
+  const sha = await ghGetFileSha('sports-config.json');
+  await ghPutFile('sports-config.json', SPORTS, sha);
+}
+
+function openModal() {
+  document.getElementById('add-modal').classList.add('open');
+  const sp = document.getElementById('modal-sport');
+  sp.innerHTML = '<option value="">-- Select Sport --</option>' + Object.keys(SPORTS).map(s=>`<option value="${s}">${s}</option>`).join('');
+  ['modal-comp','modal-teamA','modal-teamB'].forEach(id => {
+    document.getElementById(id).innerHTML = '<option value="">-- Select --</option>';
+    document.getElementById(id).disabled = true;
+  });
+  document.getElementById('modal-scoreA').value = '';
+  document.getElementById('modal-scoreB').value = '';
+  document.getElementById('modal-stage').value = '';
+  document.getElementById('modal-status').value = 'Not watched';
+}
+function closeModal() { document.getElementById('add-modal').classList.remove('open'); }
+
+function onSportChange() {
+  const sp = document.getElementById('modal-sport').value;
+  const c = document.getElementById('modal-comp');
+  if (!sp) { c.innerHTML='<option value="">-- Select Competition --</option>'; c.disabled=true; return; }
+  c.innerHTML = '<option value="">-- Select Competition --</option>' + Object.keys(SPORTS[sp]).map(l=>`<option value="${l}">${l}</option>`).join('');
+  c.disabled = false;
+  document.getElementById('modal-teamA').innerHTML='<option value="">-- Select Team A --</option>'; document.getElementById('modal-teamA').disabled=true;
+  document.getElementById('modal-teamB').innerHTML='<option value="">-- Select Team B --</option>'; document.getElementById('modal-teamB').disabled=true;
+}
+function onCompChange() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
+  const ta=document.getElementById('modal-teamA');
+  if (!comp) { ta.innerHTML='<option value="">-- Select Team A --</option>'; ta.disabled=true; return; }
+  ta.innerHTML = '<option value="">-- Select Team A --</option>' + SPORTS[sp][comp].map(t=>`<option value="${t}">${t}</option>`).join('');
+  ta.disabled = false;
+  document.getElementById('modal-teamB').innerHTML='<option value="">-- Select Team B --</option>'; document.getElementById('modal-teamB').disabled=true;
+}
+function onTeamAChange() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value, tA=document.getElementById('modal-teamA').value;
+  const tb=document.getElementById('modal-teamB');
+  if (!tA) { tb.innerHTML='<option value="">-- Select Team B --</option>'; tb.disabled=true; return; }
+  tb.innerHTML = '<option value="">-- Select Team B --</option>' + SPORTS[sp][comp].filter(t=>t!==tA).map(t=>`<option value="${t}">${t}</option>`).join('');
+  tb.disabled = false;
+}
+
+async function submitMatch() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
+  const tA=document.getElementById('modal-teamA').value, tB=document.getElementById('modal-teamB').value;
+  const vA=document.getElementById('modal-scoreA').value, vB=document.getElementById('modal-scoreB').value;
+  const stage=document.getElementById('modal-stage').value.trim();
+  const status=document.getElementById('modal-status').value;
+  if (!sp||!comp||!tA||!tB) { alert('Please complete steps 1–4.'); return; }
+  setStatus('Saving…', 'loading');
+  const matches = await getMatches();
+  matches.push({ id:Date.now(), sport:sp, comp, teamA:tA, teamB:tB, scoreA:vA.trim()!==''?parseInt(vA):null, scoreB:vB.trim()!==''?parseInt(vB):null, stage:stage||null, status });
+  await saveMatches(matches);
+  setStatus('Saved to GitHub');
+  closeModal(); render();
+}
+
+async function updateScore(id, field, value) {
+  const matches = await getMatches();
+  const m = matches.find(m=>m.id===id);
+  if (m) { m[field] = value.trim()!=='' ? parseInt(value) : null; await saveMatches(matches); render(); }
+}
+async function updateStatus(id, status) {
+  const matches = await getMatches();
+  const m = matches.find(m=>m.id===id);
+  if (m) { m.status = status; await saveMatches(matches); }
+}
+async function deleteMatch(id) {
+  const matches = (await getMatches()).filter(m=>m.id!==id);
+  await saveMatches(matches); render();
+}
+
+function getWinner(m) {
+  if (m.scoreA===null||m.scoreB===null||isNaN(m.scoreA)||isNaN(m.scoreB)) return null;
+  if (m.scoreA>m.scoreB) return 'A'; if (m.scoreB>m.scoreA) return 'B'; return 'D';
+}
+
+async function render() {
+  const matches = await getMatches();
+  const c = document.getElementById('matches');
+  if (!matches.length) { c.innerHTML=`<div class="empty">No matches logged for ${selectedDate}</div>`; return; }
+  c.innerHTML = matches.map(m => {
+    const w = getWinner(m);
+    return `<div class="match-row">
+      <span class="sport-badge">${m.sport.substring(0,5)}</span>
+      <div class="competition">${m.comp}</div>
+      <div class="match-scores">
+        <span class="team-name left ${w==='A'?'winner':''} ${w==='D'?'draw':''}">${w==='A'?'✓ ':''}${m.teamA}</span>
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreA??''}" onchange="updateScore(${m.id},'scoreA',this.value)" placeholder="-">
+        <span class="score-sep">-</span>
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreB??''}" onchange="updateScore(${m.id},'scoreB',this.value)" placeholder="-">
+        <span class="team-name right ${w==='B'?'winner':''} ${w==='D'?'draw':''}">${m.teamB}${w==='B'?' ✓':''}</span>
+      </div>
+      <div class="stage-tag">${m.stage||''}</div>
+      <select onchange="updateStatus(${m.id},this.value)">${STATUS_OPTIONS.map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      <button class="delete-btn" onclick="deleteMatch(${m.id})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+/* Settings */
+function openSettings() { document.getElementById('settings-modal').classList.add('open'); switchTab('sports'); }
+function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function switchTab(tab) {
+  ['sports','leagues','teams'].forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===tab?'block':'none';
+    document.getElementById('tab-'+t).className = 'tab'+(t===tab?' active':'');
+  });
+  if (tab==='leagues'||tab==='teams') populateSettingsSports();
+}
+function populateSettingsSports() {
+  const sports = Object.keys(SPORTS);
+  ['league-sport-sel','remove-league-sport','team-sport-sel','rm-team-sport'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">-- Sport --</option>' + sports.map(s=>`<option value="${s}">${s}</option>`).join('');
+  });
+  renderSportTags();
+}
+function renderSportTags() {
+  document.getElementById('sport-list').innerHTML = Object.keys(SPORTS).map(s=>
+    `<span class="tag">${s} <button onclick="removeSport('${s}')">✕</button></span>`).join('');
+}
+async function addSport() {
+  const name = document.getElementById('new-sport-name').value.trim();
+  if (!name) return;
+  if (SPORTS[name]) { alert('Sport already exists.'); return; }
+  SPORTS[name] = {};
+  await saveSports();
+  document.getElementById('new-sport-name').value = '';
+  renderSportTags(); populateSettingsSports();
+}
+async function removeSport(name) {
+  if (!confirm(`Remove "${name}" and all its leagues?`)) return;
+  delete SPORTS[name]; await saveSports(); renderSportTags(); populateSettingsSports();
+}
+function populateRemoveLeagues() {
+  const sp = document.getElementById('remove-league-sport').value;
+  const el = document.getElementById('remove-league-name');
+  el.innerHTML = '<option value="">-- League --</option>' + Object.keys(SPORTS[sp]||{}).map(l=>`<option value="${l}">${l}</option>`).join('');
+}
+async function addLeague() {
+  const sp=document.getElementById('league-sport-sel').value, name=document.getElementById('new-league-name').value.trim();
+  if (!sp||!name) { alert('Select a sport and enter a league name.'); return; }
+  if (SPORTS[sp][name]) { alert('League already exists.'); return; }
+  SPORTS[sp][name] = []; await saveSports();
+  document.getElementById('new-league-name').value = '';
+  alert(`"${name}" added to ${sp}.`);
+}
+async function removeLeague() {
+  const sp=document.getElementById('remove-league-sport').value, name=document.getElementById('remove-league-name').value;
+  if (!sp||!name) { alert('Select a sport and league.'); return; }
+  if (!confirm(`Remove "${name}" from ${sp}?`)) return;
+  delete SPORTS[sp][name]; await saveSports();
+  populateRemoveLeagues(); alert(`"${name}" removed.`);
+}
+function populateTeamLeagues(targetId) {
+  const sportSelId = targetId==='team-league-sel' ? 'team-sport-sel' : 'rm-team-sport';
+  const sp = document.getElementById(sportSelId).value;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.innerHTML = '<option value="">-- League --</option>' + Object.keys(SPORTS[sp]||{}).map(l=>`<option value="${l}">${l}</option>`).join('');
+}
+function populateRmTeams() {
+  const sp=document.getElementById('rm-team-sport').value, league=document.getElementById('rm-team-league').value;
+  const el=document.getElementById('rm-team-name');
+  el.innerHTML = '<option value="">-- Team --</option>' + (SPORTS[sp]&&SPORTS[sp][league]?SPORTS[sp][league]:[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+async function addTeam() {
+  const sp=document.getElementById('team-sport-sel').value, league=document.getElementById('team-league-sel').value, name=document.getElementById('new-team-name').value.trim();
+  if (!sp||!league||!name) { alert('Select a sport, league, and enter a team name.'); return; }
+  if (SPORTS[sp][league].includes(name)) { alert('Team already exists.'); return; }
+  SPORTS[sp][league].push(name); SPORTS[sp][league].sort(); await saveSports();
+  document.getElementById('new-team-name').value = '';
+  alert(`"${name}" added to ${league}.`);
+}
+async function removeTeam() {
+  const sp=document.getElementById('rm-team-sport').value, league=document.getElementById('rm-team-league').value, name=document.getElementById('rm-team-name').value;
+  if (!sp||!league||!name) { alert('Select sport, league, and team.'); return; }
+  if (!confirm(`Remove "${name}" from ${league}?`)) return;
+  SPORTS[sp][league] = SPORTS[sp][league].filter(t=>t!==name); await saveSports();
+  populateRmTeams(); alert(`"${name}" removed.`);
+}
+
+init();
+</script>
+</body>
+</html>
