@@ -35,7 +35,11 @@ select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px
 .winner{color:#6d7a4b;font-weight:700;}
 .draw{color:#7a6449;}
 .status-bar{font-size:12px;color:#6b5d4f;padding:6px 0 14px;display:flex;align-items:center;gap:6px;}
-.status-dot{width:6px;height:6px;border-radius:50%;background:#6d7a4b;display:inline-block;flex-shrink:0;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#d4c4a8;display:inline-block;flex-shrink:0;}
+.status-dot.ok{background:#6d7a4b;}
+.status-dot.loading{background:#7a6449;animation:pulse 1s infinite alternate;}
+.status-dot.error{background:#ba4c4c;}
+@keyframes pulse{from{opacity:0.4;}to{opacity:1;}}
 .overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(61,52,40,0.4);backdrop-filter:blur(2px);z-index:1000;justify-content:center;align-items:center;}
 .overlay.open{display:flex;}
 .modal{background:#ede8dd;border:2px solid #3d3428;border-radius:12px;padding:2rem;width:90%;max-width:520px;box-shadow:0 10px 25px rgba(0,0,0,0.1);max-height:90vh;overflow-y:auto;}
@@ -80,12 +84,11 @@ select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px
   </div>
   <div id="status-bar" class="status-bar">
     <span class="status-dot" id="sdot"></span>
-    <span id="status-msg">Using Local Browser Storage</span>
+    <span id="status-msg">Connecting to database...</span>
   </div>
   <div id="matches"></div>
 </div>
 
-<!-- Add Match Modal -->
 <div class="overlay" id="add-modal">
   <div class="modal">
     <h3>Log New Match</h3>
@@ -130,7 +133,6 @@ select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px
   </div>
 </div>
 
-<!-- Settings Modal -->
 <div class="overlay" id="settings-modal">
   <div class="modal" style="max-width:600px;">
     <h3>Manage Leagues &amp; Teams</h3>
@@ -198,7 +200,25 @@ select{padding:6px 8px;font-size:13px;border:1px solid #d4c4a8;border-radius:6px
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
 <script>
+// Integrated with your custom Firebase Web App settings
+const firebaseConfig = {
+  apiKey: "AIzaSyBbW6TBWP5cxMtQ_B-Nr2NVqWAOOJmhmdY",
+  authDomain: "match-diary-9c6f5.firebaseapp.com",
+  databaseURL: "https://match-diary-9c6f5-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "match-diary-9c6f5",
+  storageBucket: "match-diary-9c6f5.firebasestorage.app",
+  messagingSenderId: "302091925227",
+  appId: "1:302091925227:web:29e3f7ff8d98179460b0ae"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 const DEFAULT_SPORTS = {
   Football:{
     'Premier League':['Arsenal','Aston Villa','Bournemouth','Brentford','Brighton','Chelsea','Coventry','Crystal Palace','Everton','Fulham','Ipswich Town','Hull City','Leeds','Liverpool','Manchester City','Manchester United','Newcastle United','Nottingham Forest','Sunderland','Tottenham Hotspur'],
@@ -206,7 +226,7 @@ const DEFAULT_SPORTS = {
     'Serie A':['Atalanta','Bologna','Cagliari','Como','Fiorentina','Frosinone','Genoa','Inter Milan','Juventus','Lazio','Lecce','AC Milan','Monza','Napoli','Parma','Roma','Sassuolo','Torino','Udinese','Venezia','Verona'],
     'Bundesliga':['Augsburg','Bayer Leverkusen','Bayern Munich','Borussia Dortmund','SV Elversberg','Borussia Monchengladbach','Eintracht Frankfurt','HSV','Hoffenheim','FC Koln','Mainz 05','RB Leipzig','SC Freiburg','VfB Stuttgart','Schalke 04','SC Paderborn','Werder Bremen','Union Berlin'],
     'Ligue 1':['Angers','Auxerre','Brest','Le Havre','Le Mans','Lens','Lille','Lorient','Lyon','Marseille','Monaco','Nice','Paris FC','PSG','Rennes','Strasbourg','Toulouse','Troyes'],
-    'Eredivisie':['ADO Den Haag','Ajax','AZ','Cambuur','Excelsior','Feyenoord','Go Ahead Eagles','Groningen','Heerenveen','NEC','PSV','Spara Rotterdam','Fortuna Sittard','Telstar','Twente','Utrecht','PEC Zwolle','Willem II'],
+    'Eredivisie':['ADO Den Haag','Ajax','AZ','Cambuur','Excelsior','Feyenoord','Go Ahead Eagles','Groningen','Heerenveen','NEC','PSV','Spara Rotterdam','Fortuna Sittard','Twente','Utrecht','PEC Zwolle','Willem II'],
     'Primeira Liga':['Academico de Viseu','Alverca','Arouca','Benfica','Braga','Casa Pia','Estoril','Estrela','Famalicao','Gil Vicente','Maritmo','Moreirense','Nacional','Porto','Rio Ave','Santa Clara','Sporting CP','Vitoria de Guimaraes'],
     'Belgian Pro':['Anderlecht','Antwerp','Baveren','Cercle Brugge','Charleori','Club Brugge','Genk','Gent','Kotrijk','La Louviere','Lommel','Machelen','OH Leuven','Saint-Truiden','Santdard Liege','USG','Westerlo','Zulte Waregem'],
     'Super League Greece':['AEK','Kifisia','Aris','Asteras Tripolis','Atromitos','Iraklis','Kalamata','Levadiakos','OFI','Olympiacos','Panathinaikos','Panetolikos','PAOK','Volos'],
@@ -265,34 +285,83 @@ const DEFAULT_SPORTS = {
 const STATUS_OPTIONS = ['Not watched','Full','Highlights','Just score'];
 let SPORTS = JSON.parse(JSON.stringify(DEFAULT_SPORTS));
 let selectedDate = new Date().toISOString().split('T')[0];
+let currentMatches = [];
 
 document.getElementById('diary-date').value = selectedDate;
-document.getElementById('diary-date').addEventListener('change', e => { selectedDate = e.target.value; render(); });
+document.getElementById('diary-date').addEventListener('change', e => { selectedDate = e.target.value; listenToMatches(); });
 
 function setStatus(msg, state='ok') {
   document.getElementById('status-msg').textContent = msg;
   const dot = document.getElementById('sdot');
-  dot.className = 'status-dot' + (state==='loading' ? ' loading' : state==='error' ? ' error' : '');
+  dot.className = 'status-dot ' + state;
 }
 
 function init() {
-  setStatus('Using Local Storage — Saved locally on your device');
-  const saved = localStorage.getItem('sports-config');
-  if (saved) SPORTS = JSON.parse(saved);
-  render();
+  setStatus('Connecting to Database...', 'loading');
+  
+  // Listen for config customization changes
+  db.ref('sports-config').on('value', snapshot => {
+    const saved = snapshot.val();
+    if (saved) SPORTS = saved;
+    populateSettingsSports();
+  });
+
+  // Track match listings actively
+  listenToMatches();
 }
 
-function getMatches() {
-  const data = localStorage.getItem(`matches-${selectedDate}`);
-  return data ? JSON.parse(data) : [];
+function listenToMatches() {
+  setStatus('Loading matches...', 'loading');
+  db.ref(`matches/${selectedDate}`).on('value', snapshot => {
+    const data = snapshot.val();
+    currentMatches = data ? Object.keys(data).map(key => ({firebaseId: key, ...data[key]})) : [];
+    render();
+    setStatus('Connected to Cloud Database', 'ok');
+  }, error => {
+    console.error(error);
+    setStatus('Database access denied. Check your rules configuration.', 'error');
+  });
 }
 
-function saveMatches(matches) {
-  localStorage.setItem(`matches-${selectedDate}`, JSON.stringify(matches));
+function submitMatch() {
+  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
+  const tA=document.getElementById('modal-teamA').value, tB=document.getElementById('modal-teamB').value;
+  const vA=document.getElementById('modal-scoreA').value, vB=document.getElementById('modal-scoreB').value;
+  const stage=document.getElementById('modal-stage').value.trim();
+  const status=document.getElementById('modal-status').value;
+  if (!sp||!comp||!tA||!tB) { alert('Please complete steps 1–4.'); return; }
+  
+  const newMatch = {
+    id: Date.now(),
+    sport: sp,
+    comp,
+    teamA: tA,
+    teamB: tB,
+    scoreA: vA.trim()!==''?parseInt(vA):null,
+    scoreB: vB.trim()!==''?parseInt(vB):null,
+    stage: stage||null,
+    status
+  };
+
+  db.ref(`matches/${selectedDate}`).push(newMatch);
+  closeModal();
+}
+
+function updateScore(firebaseId, field, value) {
+  const val = value.trim()!=='' ? parseInt(value) : null;
+  db.ref(`matches/${selectedDate}/${firebaseId}`).update({ [field]: val });
+}
+
+function updateStatus(firebaseId, status) {
+  db.ref(`matches/${selectedDate}/${firebaseId}`).update({ status });
+}
+
+function deleteMatch(firebaseId) {
+  db.ref(`matches/${selectedDate}/${firebaseId}`).remove();
 }
 
 function saveSports() {
-  localStorage.setItem('sports-config', JSON.stringify(SPORTS));
+  db.ref('sports-config').set(SPORTS);
 }
 
 function openModal() {
@@ -335,65 +404,34 @@ function onTeamAChange() {
   tb.disabled = false;
 }
 
-function submitMatch() {
-  const sp=document.getElementById('modal-sport').value, comp=document.getElementById('modal-comp').value;
-  const tA=document.getElementById('modal-teamA').value, tB=document.getElementById('modal-teamB').value;
-  const vA=document.getElementById('modal-scoreA').value, vB=document.getElementById('modal-scoreB').value;
-  const stage=document.getElementById('modal-stage').value.trim();
-  const status=document.getElementById('modal-status').value;
-  if (!sp||!comp||!tA||!tB) { alert('Please complete steps 1–4.'); return; }
-  
-  const matches = getMatches();
-  matches.push({ id:Date.now(), sport:sp, comp, teamA:tA, teamB:tB, scoreA:vA.trim()!==''?parseInt(vA):null, scoreB:vB.trim()!==''?parseInt(vB):null, stage:stage||null, status });
-  saveMatches(matches);
-  closeModal(); 
-  render();
-}
-
-function updateScore(id, field, value) {
-  const matches = getMatches();
-  const m = matches.find(m=>m.id===id);
-  if (m) { m[field] = value.trim()!=='' ? parseInt(value) : null; saveMatches(matches); render(); }
-}
-function updateStatus(id, status) {
-  const matches = getMatches();
-  const m = matches.find(m=>m.id===id);
-  if (m) { m.status = status; saveMatches(matches); }
-}
-function deleteMatch(id) {
-  const matches = getMatches().filter(m=>m.id!==id);
-  saveMatches(matches); render();
-}
-
 function getWinner(m) {
   if (m.scoreA===null||m.scoreB===null||isNaN(m.scoreA)||isNaN(m.scoreB)) return null;
   if (m.scoreA>m.scoreB) return 'A'; if (m.scoreB>m.scoreA) return 'B'; return 'D';
 }
 
 function render() {
-  const matches = getMatches();
   const c = document.getElementById('matches');
-  if (!matches.length) { c.innerHTML=`<div class="empty">No matches logged for ${selectedDate}</div>`; return; }
-  c.innerHTML = matches.map(m => {
+  if (!currentMatches.length) { c.innerHTML=`<div class="empty">No matches logged for ${selectedDate}</div>`; return; }
+  c.innerHTML = currentMatches.map(m => {
     const w = getWinner(m);
     return `<div class="match-row">
       <span class="sport-badge">${m.sport.substring(0,5)}</span>
       <div class="competition">${m.comp}</div>
       <div class="match-scores">
         <span class="team-name left ${w==='A'?'winner':''} ${w==='D'?'draw':''}">${w==='A'?'✓ ':''}${m.teamA}</span>
-        <input type="text" maxlength="3" class="score-box" value="${m.scoreA??''}" onchange="updateScore(${m.id},'scoreA',this.value)" placeholder="-">
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreA??''}" onchange="updateScore('${m.firebaseId}','scoreA',this.value)" placeholder="-">
         <span class="score-sep">-</span>
-        <input type="text" maxlength="3" class="score-box" value="${m.scoreB??''}" onchange="updateScore(${m.id},'scoreB',this.value)" placeholder="-">
+        <input type="text" maxlength="3" class="score-box" value="${m.scoreB??''}" onchange="updateScore('${m.firebaseId}','scoreB',this.value)" placeholder="-">
         <span class="team-name right ${w==='B'?'winner':''} ${w==='D'?'draw':''}">${m.teamB}${w==='B'?' ✓':''}</span>
       </div>
       <div class="stage-tag">${m.stage||''}</div>
-      <select onchange="updateStatus(${m.id},this.value)">${STATUS_OPTIONS.map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s}</option>`).join('')}</select>
-      <button class="delete-btn" onclick="deleteMatch(${m.id})">✕</button>
+      <select onchange="updateStatus('${m.firebaseId}',this.value)">${STATUS_OPTIONS.map(s=>`<option value="${s}" ${m.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      <button class="delete-btn" onclick="deleteMatch('${m.firebaseId}')">✕</button>
     </div>`;
   }).join('');
 }
 
-/* Settings */
+/* Settings Controls */
 function openSettings() { document.getElementById('settings-modal').classList.add('open'); switchTab('sports'); }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
 function switchTab(tab) {
@@ -476,7 +514,7 @@ function removeTeam() {
   populateRmTeams(); alert(`"${name}" removed.`);
 }
 
-// Start the app
+// Start app
 init();
 </script>
 </body>
